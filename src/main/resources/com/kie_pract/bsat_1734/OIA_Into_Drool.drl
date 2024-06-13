@@ -1,0 +1,895 @@
+package com.kie_pract.bsat_1734;
+import com.kie_pract.bsat_1734.Product;
+import com.kie_pract.bsat_1734.Dealer;
+import java.lang.*;
+import java.util.*;
+import java.time.LocalDate;
+import java.text.ParseException;  
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;  
+import java.time.LocalDateTime; 
+import java.util.ArrayList;
+import java.util.List;
+import com.google.gson.Gson;
+import org.json.JSONObject;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+//////////////////////////// new start ///////////////////////////////////
+rule "dealer true"
+dialect "mvel"
+ruleflow-group "BSAT"
+when
+$E:Dealer( dell_Col==false ,  dlr_SCH_ID!=null && del_TY_VOLUME!=null &&  dlr_FIN_AN_FLAG!=null && dlr_REGN!=null && dlr_DEPOT!=null && dlr_STATE!=null &&
+dlr_TERR_CODE!=null && dlr_TERR_NAME!=null && dlr_BILL_TO!=null && dlr_AC_NO!=null && dlr_AC_NAME!=null && dlr_CAT!=null && dlr_TYPE!=null )
+then
+
+System.out.println("\n *********************** Again Start    **************************");
+$E.setDell_Col(true)
+end
+
+rule "product_eligible_for_LY 1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+//$Y:Product( prd_ELIGIBLE_LY==false,$T:prd_CAT,$T!=null , $Q:prd_INU_DT,( $Q.isEqual(LocalDate.parse("2017-03-23"))|| $Q.isBefore(LocalDate.parse("2017-03-23")) || $Q.isEqual(LocalDate.parse("2017-03-22"))  || $Q.isAfter(LocalDate.parse("2017-03-22")) )  && $T=="WCS" )
+$D:Dealer(  $l : productList.size(), $pl : productList,$j:0,$sum:0.0d ,dlr_prd_ELIGIBLE_LY==false)
+
+	then
+    
+	for ($j =0;$j<$l;$j++)
+	{
+			com.kie_pract.bsat_1734.Product prod1 = (com.kie_pract.bsat_1734.Product)$pl.get($j);
+					           
+            Gson gson = new Gson();
+            JsonObject jsonObject1 =gson.toJsonTree(prod1).getAsJsonObject();
+	        String prdcat =jsonObject1.get("prd_CAT").getAsString();
+	        int id=jsonObject1.get("id").getAsInt();
+	        LocalDate prdinudt=prod1.getPrd_INU_DT();
+            System.out.println("\n loop : "+id+"prdcat in LY::  "+prdcat);
+	   if(prdcat.equals("WCS")  &&  prdinudt.isAfter(LocalDate.parse("2017-01-01"))   &&  prdinudt.isBefore(LocalDate.parse("2017-12-31"))  && ( prdinudt.isEqual(LocalDate.parse("2017-03-23"))|| prdinudt.isBefore(LocalDate.parse("2017-03-23")) || prdinudt.isEqual(LocalDate.parse("2017-03-22"))  || prdinudt.isAfter(LocalDate.parse("2017-03-22"))  || prdinudt.isBefore(LocalDate.parse("2017-12-31")) ) )
+       {
+              jsonObject1.addProperty("prd_ELIGIBLE_LY", "true");
+              prod1.setPrd_ELIGIBLE_LY( true)  ; 
+       }      
+                          
+	}
+end
+
+rule "product_eligible_for_TY"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$D:Dealer(  $l : productList.size(), $pl : productList,$j:0,$sum:0.0d ,dlr_prd_ELIGIBLE_TY==false)
+then
+	for ($j =0;$j<$l;$j++)
+	{
+			com.kie_pract.bsat_1734.Product prod1 = (com.kie_pract.bsat_1734.Product)$pl.get($j);
+					           
+            Gson gson = new Gson();
+            JsonObject jsonObject1 =gson.toJsonTree(prod1).getAsJsonObject();
+	        String prdcat =jsonObject1.get("prd_CAT").getAsString();
+	        int id=jsonObject1.get("id").getAsInt();
+	        LocalDate prdinudt=prod1.getPrd_INU_DT();
+            System.out.println("\n loop : "+id+"prdcat in TY::  "+prdcat);
+	   if(prdcat.equals("WCS")  &&  prdinudt.isAfter(LocalDate.parse("2018-01-01"))   &&  prdinudt.isBefore(LocalDate.parse("2018-12-31"))  &&( prdinudt.isEqual(LocalDate.parse("2018-03-23"))|| prdinudt.isBefore(LocalDate.parse("2018-03-23")) || prdinudt.isEqual(LocalDate.parse("2018-03-22"))  || prdinudt.isAfter(LocalDate.parse("2018-03-22"))  ) )
+       {
+              jsonObject1.addProperty("prd_ELIGIBLE_TY", "true");
+              prod1.setPrd_ELIGIBLE_TY( true)  ; 
+       }      
+                         
+	}
+end
+//
+
+rule "dealer_TY_volume"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$W:Dealer(  $l : productList.size(), $pl : productList,$M:dlr_FIN_AN_FLAG,$Z:del_TY_VOLUME ,$j:0)
+then
+ 
+  	com.kie_pract.bsat_1734.Product prod1 = (com.kie_pract.bsat_1734.Product)$pl.get($j);
+					           
+            Gson gson = new Gson();
+            JsonObject jsonObject1 =gson.toJsonTree(prod1).getAsJsonObject();
+             boolean prdcat_eligible_LY =jsonObject1.get("prd_ELIGIBLE_LY").getAsBoolean();
+            System.out.println("\n prd_ELIGIBLE_LY :   "+prdcat_eligible_LY);
+               boolean prdcat_eligible_TY =jsonObject1.get("prd_ELIGIBLE_TY").getAsBoolean();
+            System.out.println("\n prd_ELIGIBLE_TY :   "+prdcat_eligible_TY);
+   double sum=0;
+  if($M==1 &&  prdcat_eligible_LY==true && prdcat_eligible_TY==false  )
+        {
+	         for ($j =0;$j<$l;$j++)
+          	{
+               sum=sum+ prod1.getPrd_FNL_VOL_RW();
+             System.out.println(" \n LY PRD FNL VOL RW :" + sum);
+           }  
+    	}
+   else if($M!=1  && prdcat_eligible_TY==true && prdcat_eligible_LY==false )
+          {
+        	for ($j =0;$j<$l;$j++)
+        	{
+             sum=sum+ prod1.getPrd_FNL_VOL_RW();
+              System.out.println(" \n TY PRD FNL VOL RW :" + sum);
+             }      
+    	}
+	  $W.setDel_TY_VOLUME(sum);
+	   System.out.println("Sum Of AllProduct Volume of LY: "+sum);
+end
+
+/*
+rule "dealer_TY_volume_1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+//$W:Dealer(  $l : productList.size(), $pl : productList,dlr_FIN_AN_FLAG != 1,$Z:del_TY_VOLUME ,$j:0,$sum:0.0d )
+$W:Dealer(  $l : productList.size(), $pl : productList,$M:dlr_FIN_AN_FLAG ,$Z:del_TY_VOLUME ,$j:0 )
+then
+	double sum = 0;
+
+			com.kie_pract.bsat_1734.Product prod1 = (com.kie_pract.bsat_1734.Product)$pl.get($j);
+				           
+            Gson gson = new Gson();
+            JsonObject jsonObject1 =gson.toJsonTree(prod1).getAsJsonObject();
+	        boolean prdcat_eligible_TY =jsonObject1.get("prd_ELIGIBLE_TY").getAsBoolean();
+            System.out.println("\n prd_ELIGIBLE_TY :   "+prdcat_eligible_TY);
+	   if($M!=1  && prdcat_eligible_TY==true  )
+       {
+       	for ($j =0;$j<$l;$j++)
+        	{
+             sum=sum+ prod1.getPrd_FNL_VOL_RW();
+              System.out.println(" \n TY PRD FNL VOL RW :" + sum);
+            }      
+    	}
+	  $W.setDel_TY_VOLUME(sum);
+	     	   System.out.println("Sum Of AllProduct Volume of TY: "+sum);
+end
+*/
+
+rule "dealer_main_status_Q1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Y:Dealer($E:del_TY_VOLUME  )
+then
+  System.out.println("\n Dealer TY Volume for Status: "+$E);
+if( $E >= 100 )
+{
+$Y.setDlr_MAIN_STATUS("Q");
+System.out.println(" Status Qualified :: Q ");
+}
+else
+{
+ $Y.setDlr_MAIN_STATUS("NQ");
+System.out.println(" Status not Qualified :: NQ "); 
+}
+
+end
+
+/*
+rule "dealer_main_status_NQ"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Y:Dealer($E:del_TY_VOLUME )
+then
+if($E < 100 )
+{
+$Y.setDlr_MAIN_STATUS("NQ");
+}
+
+System.out.println(" not dealer ty volume ==  "+$E);
+end
+//
+
+*/
+
+rule "dealer_main_CN_1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$C:Dealer($Q:del_TY_VOLUME  )
+then
+if( $Q >= 500)
+{
+$C.setDlr_MAIN_CN(2000);
+System.out.println("\n del_TY_Volume ::  "+$Q+"\t dlr_MAIN_CN  2000  ");
+}
+else if( $Q >= 150 && $Q < 500)
+{
+   $C.setDlr_MAIN_CN(500); 
+   System.out.println("\n del_TY_Volume ::  "+$Q+"\t dlr_MAIN_CN  500  ");
+}
+else
+{
+   $C.setDlr_MAIN_CN(0); 
+    System.out.println("\n del_TY_Volume ::  "+$Q+"\t dlr_MAIN_CN  0  ");
+}
+end 
+/*
+rule "dealer_main_CN_2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$C:Dealer($Q:del_TY_VOLUME )
+then
+if( $Q >= 150 && $Q < 500)
+{
+$C.setDlr_MAIN_CN(500);
+}
+end 
+//
+rule "dealer_main_CN_3"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$C:Dealer($Q:del_TY_VOLUME)
+then
+if($Q < 150 )
+{
+$C.setDlr_MAIN_CN(0);
+}
+end 
+*/
+
+
+rule "dealer_total_CN"
+dialect "mvel"
+ruleflow-group "BSAT"
+when
+$X:Dealer($A:dlr_MAIN_CN   )
+then
+$X.setDlr_TOT_CN($A)
+ System.out.println("\n dlr_MAIN_CN ::  "+$A+"\t FOR  setDlr_TOT_CN   ");
+end
+
+
+rule "dealer_total_budget"
+dialect "mvel"
+ruleflow-group "BSAT"
+when
+$H:Dealer($B:Dlr_TOT_CN  )
+then
+$H.setDlr_TOT_BDGT($B)
+ System.out.println("\n dlr_TOT_CN ::  "+$B+"\t FOR  setDlr_TOT_BDGT   ");
+end
+
+
+/////////////////////////////////////////////////////////////////////////// Rewards Rule  /////////////////////////////////////////////////////////
+
+rule "reward "
+dialect "java"
+
+ruleflow-group "BSAT"
+when
+$F:Dealer($V:dlr_BILL_TO ,rw_CODE==false )
+then
+if($V!=null)
+{
+$F.setRw_CODE(true);
+}
+	System.out.println("\ndlr_BILL_TO "+$V+"\t setRw_CODE :: true");	           
+end
+
+
+rule "reward 1"
+dialect "java"
+
+ruleflow-group "BSAT"
+when
+$F:Dealer($V:dlr_BILL_TO ,$V!=null)
+then
+String code_1=$V.concat("_1");
+
+String code_2=$V.concat("_2");
+
+$F.setRw_CODE_1($V.concat("_1"));
+$F.setRw_CODE_2($V.concat("_2"));
+
+System.out.println("\nReward_1 ::  "  +code_1+"\tReward_2 :: "+code_2 );
+end
+/*
+rule "reward 2"
+dialect "mvel"
+salience 10
+ruleflow-group "BSAT"
+when
+$F:Dealer($V:dlr_BILL_TO ,$V!=null )
+then
+$F.setRw_CODE_2($V.concat("_2"))
+end
+*/
+
+
+rule "reward_section"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $X:rw_CODE_1,$W:rw_CODE  )
+then
+if($X.endsWith("_1")&& $W==true )
+{
+     $G.setRw_1_SEC("MAIN SCHEME");
+      $G.setRw_2_SEC("TOTAL");
+  System.out.println("\nReward_1 :: MAIN SCHEME " );
+  System.out.println("\nReward_2 :: Total ");    
+}
+System.out.println(" "+($X.endsWith("_1")));
+end
+
+
+
+
+
+
+
+
+/*
+rule "reward_section 2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $X:rw_CODE_2, $O:rw_CODE_2_T )
+then
+if($X.endsWith("_2")&& $W==true && $O==true)
+{
+$G.setRw_SEC("TOTAL");
+}
+end
+
+rule "reward_section"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $X:rw_CODE_1,$W:rw_CODE )
+then
+if($X.endsWith("_1")&& $W==true )
+{
+     $G.setRw_SEC("MAIN SCHEME");
+}
+else
+{
+    $G.setRw_2_SEC("NA");
+}
+System.out.println(" "+($X.endsWith("_1")));
+end
+
+rule "reward_section 2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $X:rw_CODE_2 )
+then
+if($X.endsWith("_2")&& $W==true )
+{
+$G.setRw_2_SEC("TOTAL");
+}
+else
+{
+   $G.setRw_SEC("NA"); 
+}
+end
+*/
+
+rule "reward_type 3"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_TYPE("Qualification");
+$G.setRw_2_TYPE("CN");
+}
+else if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_2_TYPE("CN");
+$G.setRw_1_TYPE("Qualification");
+}
+end
+
+
+
+/*
+rule "reward_type 2"
+dialect "java"
+ruleflow-group "BSAT"
+
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 ,$O:rw_CODE_2_T )
+then
+if( $B.endsWith("_2") && $W==true && $O==true)
+{
+$G.setRw_TYPE("CN");
+}
+end
+
+rule "reward_type 1"
+dialect "java"
+ruleflow-group "BSAT"
+
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_1 , $O:rw_CODE_1_T )
+then
+if( $B.endsWith("_1") && $W==true && $O==true)
+{
+$G.setRw_TYPE("Qualification");
+}
+end
+*/
+rule "reward_product 1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_PRD("WCS");
+$G.setRw_2_PRD("NA");
+}
+else if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_2_PRD("NA");
+$G.setRw_1_PRD("WCS");
+}
+end
+/*
+rule "reward_product 2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 ,$O:rw_CODE_2_T )
+then
+if( $B.endsWith("2") && $W==true && $O==true)
+{
+$G.setRw_PRD("NA");
+}
+end
+*/
+
+rule "reward unit"
+dialect "java"
+
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_UNIT("Volume");
+$G.setRw_2_UNIT("NA");
+}
+
+end
+
+
+/*
+rule "reward unit_1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$A:Dealer($W:rw_CODE , $B:rw_CODE_2 ,$O:rw_CODE_2_T  )
+then
+if( $B.endsWith("_2") && $W==true && $O==true)
+{
+$A.setRw_UNIT("NA");
+}
+end
+*/
+rule "reward date_1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_DATE("2018-03-23");
+$G.setRw_2_DATE("2018-03-23");
+}
+else if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_1_DATE("2018-03-23");
+$G.setRw_2_DATE("2018-03-23");
+}
+end
+/*
+rule "reward date_2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$A:Dealer($W:rw_CODE , $B:rw_CODE_2 ,$O:rw_CODE_2_T   )
+then
+if( $B.endsWith("_2") && $W==true && $O==true)
+{
+$A.setRw_DATE("2018-03-23");
+}
+end
+*/    
+rule "reward_LY"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE )
+then
+if($W==true)
+{
+$B.setRw_1_LY("0");
+$B.setRw_2_LY("0");
+}
+end
+
+rule "reward target_1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_TGT("150");
+$G.setRw_2_TGT("0");
+}
+else if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_1_TGT("150");
+$G.setRw_2_TGT("0");
+}
+
+end
+
+/*
+rule "reward target_2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$A:Dealer($W:rw_CODE , $B:rw_CODE_2 ,$O:rw_CODE_2_T  )
+then
+if( $B.endsWith("_2") && $W==true &&  $O==true )
+{
+$A.setRw_TGT("0");
+}
+end
+ 
+*/
+
+rule "reward TY"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 ,  $N:del_TY_VOLUME )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_TY(" " +$N);
+$G.setRw_2_TY("0");
+}
+else if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_1_TY(" " +$N);
+$G.setRw_2_TY("0");
+}
+end
+
+/*
+rule "reward TY2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$A:Dealer($W:rw_CODE , $B:rw_CODE_2, $N:del_TY_VOLUME ,$O:rw_CODE_2_T )
+then
+if( $B.endsWith("_2") && $W==true && $O==true)
+{
+$A.setRw_TY("0");
+}
+end
+*/
+
+rule "reward next target_1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 ,  $N:del_TY_VOLUME )
+then
+double abc = 150-$N;
+if( $A.endsWith("_1") && $W==true && $N <150 )
+{
+$G.setRw_1_NXT_TGT(abc);
+$G.setRw_2_NXT_TGT(0);
+}
+
+end
+
+
+rule "reward status"
+dialect "java"
+ruleflow-group "BSAT"
+when
+
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 , $Z:dlr_MAIN_STATUS )
+then
+if( $A.endsWith("_1") && $W==true )
+{
+$G.setRw_1_Q_STAT(" " +$Z);
+$G.setRw_2_Q_STAT("NA");
+}
+
+end
+
+/*
+rule "reward status 2"
+dialect "java"
+ruleflow-group "BSAT"
+when
+
+$A:Dealer($W:rw_CODE , $B:rw_CODE_2, $N:dlr_MAIN_STATUS , $O:rw_CODE_2_T)
+then
+if( $B.endsWith("_2") && $W==true && $O==true)
+{
+
+    $A.setRw_Q_STAT("NA");
+}
+end
+
+*/
+rule "reward_additional"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE )
+then
+if($W==true)
+{
+$B.setRw_1_ADDITIONAL("0");
+$B.setRw_2_ADDITIONAL("0");
+}
+end
+
+
+rule "reward_description 1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 , $Z:dlr_MAIN_STATUS )
+then
+if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_2_DESC("TOTAL CN");
+$G.setRw_1_DESC("NA");
+}
+end
+
+
+
+rule "reward_total 1"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$G:Dealer( $W:rw_CODE , $B:rw_CODE_2 , $A:rw_CODE_1 , $Z:dlr_MAIN_CN )
+then
+if( $B.endsWith("_2") && $W==true )
+{
+$G.setRw_2_TOTAL(" "+$Z );
+$G.setRw_1_TOTAL("0");
+}
+end
+
+
+rule "reward dealer region"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_REGN)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_REGN(""+$F);
+$B.setRw_2_DLR_REGN(""+$F);
+}
+end
+
+
+rule "reward dealer state"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_STATE)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_STATE(""+$F);
+$B.setRw_2_DLR_STATE(""+$F);
+}
+end
+
+
+
+rule "reward dealer depot"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_DEPOT)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_DEPOT(""+$F);
+$B.setRw_2_DLR_DEPOT(""+$F);
+}
+end
+
+
+rule "reward dealer territory code"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_TERR_CODE)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_TERR_CODE(""+$F);
+$B.setRw_2_DLR_TERR_CODE(""+$F);
+}
+end
+
+
+
+rule "reward dealer territory name"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_TERR_NAME)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_TERR_NAME(""+$F);
+$B.setRw_2_DLR_TERR_NAME(""+$F);
+}
+end
+
+
+
+rule "reward dealer code"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_AC_NO)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_CODE(""+$F);
+$B.setRw_2_DLR_CODE(""+$F);
+}
+end
+
+
+
+rule "reward dealer cat"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$B:Dealer($W:rw_CODE , $F:dlr_CAT)
+then
+if($W==true)
+{
+$B.setRw_1_DLR_CAT(""+$F);
+$B.setRw_2_DLR_CAT(""+$F);
+}
+end
+
+rule "reward dealer bill to"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE ,$K:dlr_BILL_TO)
+then
+if($W==true)
+{
+$Q.setRw_1_DLR_BILL_TO(" "+$K );
+$Q.setRw_2_DLR_BILL_TO(" "+$K );
+}
+end
+
+rule "reward dealer type"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE ,$K:dlr_TYPE)
+then
+if($W==true)
+{
+$Q.setRw_1_DLR_TYPE(" "+$K );
+$Q.setRw_2_DLR_TYPE(" "+$K );
+}
+end
+
+
+rule "reward dealer name"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE ,$K:dlr_AC_NAME)
+then
+if($W==true)
+{
+$Q.setRw_1_DLR_NAME(" "+$K );
+$Q.setRw_2_DLR_NAME(" "+$K );
+}
+end
+
+
+rule "reward scheme id"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE ,$K:dlr_SCH_ID)
+then
+if($W==true)
+{
+$Q.setRw_1_SCH_ID(" "+$K );
+$Q.setRw_2_SCH_ID(" "+$K );
+}
+end
+
+
+rule "reward gift to CN flag"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE )
+then
+if($W==true)
+{
+$Q.setRw_1_GFT_TO_CN("N" );
+$Q.setRw_2_GFT_TO_CN("N" );
+}
+end
+
+
+rule "reward converted CN"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE )
+then
+if($W==true)
+{
+$Q.setRw_1_CONV_CN("0" );
+$Q.setRw_2_CONV_CN("0" );
+}
+end
+
+
+rule "reward_interface_status"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE ,$E:rw_2_SEC )
+then
+if($W==true && $E=="TOTAL" )
+{
+$Q.setRw_2_I_STAT("P");
+$Q.setRw_1_I_STAT("NR");
+}
+else
+{
+  $Q.setRw_2_I_STAT("NR");
+$Q.setRw_1_I_STAT("NR");  
+}
+end
+
+
+rule "reward last update"
+dialect "java"
+ruleflow-group "BSAT"
+when
+$Q:Dealer($W:rw_CODE , $B:LocalDateTime.now() )
+then
+if($W==true )
+{
+$Q.setRw_2_LAST_UPDATE(""+$B);
+$Q.setRw_1_LAST_UPDATE(""+$B);
+}
+end
